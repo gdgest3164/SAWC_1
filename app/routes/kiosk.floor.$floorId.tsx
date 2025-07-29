@@ -1,7 +1,68 @@
 import { Link, useParams } from 'react-router';
-import { useState } from 'react';
+import { useState, useMemo, memo, useCallback } from 'react';
 import { useKiosk } from '~/contexts/KioskContext';
 import type { Room } from '~/types';
+
+// 방 카드 컴포넌트를 메모이제이션
+const RoomCard = memo(({ room, isSelected, onSelect }: {
+  room: Room;
+  isSelected: boolean;
+  onSelect: (room: Room) => void;
+}) => {
+  const handleClick = useCallback(() => {
+    onSelect(room);
+  }, [room, onSelect]);
+
+  return (
+    <div
+      className={`relative bg-white rounded-2xl shadow-lg p-6 cursor-pointer transform transition-all duration-300 hover:scale-105 border-4 ${
+        isSelected
+          ? 'border-purple-500 bg-purple-50'
+          : 'border-transparent hover:border-purple-300'
+      }`}
+      onClick={handleClick}
+    >
+      {/* 방 이미지 */}
+      <div className="w-full h-40 mb-4 bg-gray-200 rounded-xl overflow-hidden">
+        {room.image_url ? (
+          <img
+            src={room.image_url}
+            alt={room.name}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-4xl text-gray-400">🏢</span>
+          </div>
+        )}
+      </div>
+
+      {/* 방 정보 */}
+      <h3 className="text-xl font-bold text-gray-900 mb-2">
+        {room.name}
+      </h3>
+      
+      {room.description && (
+        <p className="text-gray-600 text-sm line-clamp-2">
+          {room.description}
+        </p>
+      )}
+
+      {/* 선택된 방 표시 */}
+      {isSelected && (
+        <div className="absolute -top-2 -right-2">
+          <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+            <span className="text-white text-xl">✓</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
+
+RoomCard.displayName = 'RoomCard';
 
 export default function FloorRoomsPage() {
   const { floorId } = useParams();
@@ -27,10 +88,17 @@ export default function FloorRoomsPage() {
     );
   }
 
-  // 현재 층이 속한 건물 찾기
-  const building = state.buildings.find(b => 
-    b.floors.some(f => f.id === floorId)
+  // 현재 층이 속한 건물 찾기 (메모이제이션)
+  const building = useMemo(() => 
+    state.buildings.find(b => 
+      b.floors.some(f => f.id === floorId)
+    ), [state.buildings, floorId]
   );
+
+  // 방 선택 콜백 메모이제이션
+  const handleRoomSelect = useCallback((room: Room) => {
+    setSelectedRoom(room);
+  }, []);
 
   if (!building) {
     return (
@@ -102,50 +170,12 @@ export default function FloorRoomsPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {floor.rooms.map((room) => (
-                  <div
+                  <RoomCard
                     key={room.id}
-                    className={`bg-white rounded-2xl shadow-lg p-6 cursor-pointer transform transition-all duration-300 hover:scale-105 border-4 ${
-                      selectedRoom?.id === room.id
-                        ? 'border-purple-500 bg-purple-50'
-                        : 'border-transparent hover:border-purple-300'
-                    }`}
-                    onClick={() => setSelectedRoom(room)}
-                  >
-                    {/* 방 이미지 */}
-                    <div className="w-full h-40 mb-4 bg-gray-200 rounded-xl overflow-hidden">
-                      {room.image_url ? (
-                        <img
-                          src={room.image_url}
-                          alt={room.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <span className="text-4xl text-gray-400">🏢</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* 방 정보 */}
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">
-                      {room.name}
-                    </h3>
-                    
-                    {room.description && (
-                      <p className="text-gray-600 text-sm line-clamp-2">
-                        {room.description}
-                      </p>
-                    )}
-
-                    {/* 선택된 방 표시 */}
-                    {selectedRoom?.id === room.id && (
-                      <div className="absolute -top-2 -right-2">
-                        <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
-                          <span className="text-white text-xl">✓</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                    room={room}
+                    isSelected={selectedRoom?.id === room.id}
+                    onSelect={handleRoomSelect}
+                  />
                 ))}
               </div>
             )}
@@ -167,6 +197,8 @@ export default function FloorRoomsPage() {
                         src={selectedRoom.image_url}
                         alt={selectedRoom.name}
                         className="w-full h-full object-cover"
+                        loading="lazy"
+                        decoding="async"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
