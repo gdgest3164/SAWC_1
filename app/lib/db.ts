@@ -13,6 +13,7 @@ import {
   mockUpdateRoom,
   mockDeleteRoom,
   mockDeleteFloor,
+  mockDeleteBuilding,
   mockSeedDatabase,
 } from './mock-db';
 
@@ -22,6 +23,15 @@ export async function initDatabase() {
   }
 
   try {
+    // 데이터베이스 연결 상태 로그
+    const dbUrl = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+    console.log('🔌 Initializing database...');
+    console.log('📊 Connection URL exists:', !!dbUrl);
+    if (dbUrl) {
+      console.log('🎯 Using real database (Neon)');
+    } else {
+      console.log('⚠️ No connection string found, should use mock DB');
+    }
     await sql`
       CREATE TABLE IF NOT EXISTS buildings (
         id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -212,4 +222,11 @@ export async function deleteFloor(floorId: string): Promise<void> {
     return mockDeleteFloor(floorId);
   }
   await sql`DELETE FROM floors WHERE id = ${floorId}`;
+}
+
+export async function deleteBuilding(buildingId: string): Promise<void> {
+  if (useMockDatabase()) {
+    return mockDeleteBuilding(buildingId);
+  }
+  await sql`DELETE FROM buildings WHERE id = ${buildingId}`;
 }

@@ -1,53 +1,30 @@
-import { type LoaderFunctionArgs } from 'react-router';
-import { useLoaderData, Link, useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import { useState } from 'react';
-import { getBuildings, getFloors, getRooms, initDatabase } from '~/lib/db';
-import type { Building, Floor, Room } from '~/types';
+import { useKiosk } from '~/contexts/KioskContext';
 
-interface FloorWithRooms extends Floor {
-  rooms: Room[];
-}
+export default function BuildingFloorsPage() {
+  const { buildingId } = useParams();
+  const { getBuilding } = useKiosk();
+  const [selectedFloor, setSelectedFloor] = useState<string | null>(null);
 
-interface BuildingWithFloors extends Building {
-  floors: FloorWithRooms[];
-}
-
-export async function loader({ params }: LoaderFunctionArgs) {
-  const { buildingId } = params;
-  
   if (!buildingId) {
     throw new Response('Building ID is required', { status: 400 });
   }
 
-  try {
-    await initDatabase();
-    const buildings = await getBuildings();
-    const building = buildings.find((b) => b.id === buildingId);
-    
-    if (!building) {
-      throw new Response('Building not found', { status: 404 });
-    }
+  const building = getBuilding(buildingId);
 
-    const floors = await getFloors(buildingId);
-    const floorsWithRooms = await Promise.all(
-      floors.map(async (floor) => {
-        const rooms = await getRooms(floor.id);
-        return { ...floor, rooms };
-      })
+  if (!building) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">건물을 찾을 수 없습니다</h1>
+          <Link to="/kiosk" className="text-blue-600 hover:text-blue-800">
+            ← 메인으로 돌아가기
+          </Link>
+        </div>
+      </div>
     );
-
-    const buildingWithFloors = { ...building, floors: floorsWithRooms };
-
-    return Response.json({ building: buildingWithFloors });
-  } catch (error) {
-    console.error('Error loading building data:', error);
-    throw new Response('Failed to load building data', { status: 500 });
   }
-}
-
-export default function BuildingFloorsPage() {
-  const { building } = useLoaderData<typeof loader>();
-  const [selectedFloor, setSelectedFloor] = useState<string | null>(null);
 
   const sortedFloors = [...building.floors].sort((a, b) => b.floor_number - a.floor_number);
 

@@ -1,36 +1,23 @@
-import { type LoaderFunctionArgs } from 'react-router';
-import { useLoaderData, Link } from 'react-router';
+import { Link } from 'react-router';
 import { useState } from 'react';
-import { getBuildings, getConnections, initDatabase } from '~/lib/db';
-import type { Building, Connection } from '~/types';
-
-interface BuildingWithConnections extends Building {
-  connections: Connection[];
-}
-
-export async function loader({ request }: LoaderFunctionArgs) {
-  try {
-    await initDatabase();
-    const buildings = await getBuildings();
-    const connections = await getConnections();
-
-    const buildingsWithConnections = buildings.map((building) => ({
-      ...building,
-      connections: connections.filter(
-        (conn) => conn.building1_id === building.id || conn.building2_id === building.id
-      ),
-    }));
-
-    return Response.json({ buildings: buildingsWithConnections, connections });
-  } catch (error) {
-    console.error('Error loading kiosk data:', error);
-    return Response.json({ buildings: [], connections: [] });
-  }
-}
+import { useKiosk } from '~/contexts/KioskContext';
 
 export default function KioskMainPage() {
-  const { buildings, connections } = useLoaderData<typeof loader>();
+  const { state } = useKiosk();
+  const { buildings, connections, isLoading } = state;
   const [selectedBuilding, setSelectedBuilding] = useState<string | null>(null);
+
+  // 로딩 상태 표시
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto mb-4 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-xl text-gray-600">데이터를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   const hasConnections = connections.length > 0;
 
@@ -76,8 +63,17 @@ export default function KioskMainPage() {
                   </p>
                 )}
 
+                {/* 층 개수 표시 */}
+                <div className="bg-blue-100 rounded-lg p-4 mb-4">
+                  <p className="text-blue-800 font-medium">
+                    🏢 {building.floors?.length || 0}개 층
+                  </p>
+                </div>
+
                 {/* 연결 표시 */}
-                {building.connections.length > 0 && (
+                {connections.some(conn => 
+                  conn.building1_id === building.id || conn.building2_id === building.id
+                ) && (
                   <div className="bg-green-100 rounded-lg p-4">
                     <p className="text-green-800 font-medium">
                       🔗 다른 건물과 연결됨

@@ -1,7 +1,7 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from 'react-router';
 import { Form, useLoaderData, useActionData } from 'react-router';
-import { useState } from 'react';
-import { getBuildings, getFloors, getRooms, createBuilding, createFloor, createRoom, deleteRoom, updateRoom, initDatabase } from '~/lib/db';
+import { useState, useEffect } from 'react';
+import { getBuildings, getFloors, getRooms, createBuilding, createFloor, createRoom, deleteRoom, deleteFloor, deleteBuilding, updateRoom, initDatabase } from '~/lib/db';
 import { uploadImage, generateImageFilename, validateImageFile } from '~/lib/storage';
 import { seedDatabase } from '~/lib/seed';
 import type { Building, Floor, Room } from '~/types';
@@ -99,6 +99,18 @@ export async function action({ request }: ActionFunctionArgs) {
         return Response.json({ success: true });
       }
 
+      case 'deleteBuilding': {
+        const buildingId = formData.get('buildingId') as string;
+        await deleteBuilding(buildingId);
+        return Response.json({ success: true });
+      }
+
+      case 'deleteFloor': {
+        const floorId = formData.get('floorId') as string;
+        await deleteFloor(floorId);
+        return Response.json({ success: true });
+      }
+
       case 'seedDatabase': {
         const result = await seedDatabase();
         return Response.json({ success: true, message: '샘플 데이터가 성공적으로 생성되었습니다.' });
@@ -121,6 +133,17 @@ export default function AdminPage() {
   const [showCreateBuilding, setShowCreateBuilding] = useState(false);
   const [showCreateFloor, setShowCreateFloor] = useState(false);
   const [showCreateRoom, setShowCreateRoom] = useState(false);
+  const [editingRoom, setEditingRoom] = useState<string | null>(null);
+
+  // 성공적으로 처리되면 편집 모드 종료
+  useEffect(() => {
+    if (actionData?.success) {
+      setEditingRoom(null);
+      setShowCreateBuilding(false);
+      setShowCreateFloor(false);
+      setShowCreateRoom(false);
+    }
+  }, [actionData]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -196,19 +219,41 @@ export default function AdminPage() {
               {buildings.map((building) => (
                 <div
                   key={building.id}
-                  className={`p-3 border rounded cursor-pointer hover:bg-gray-50 ${
+                  className={`p-3 border rounded hover:bg-gray-50 ${
                     selectedBuilding === building.id ? 'border-blue-500 bg-blue-50' : ''
                   }`}
-                  onClick={() => {
-                    setSelectedBuilding(building.id);
-                    setSelectedFloor('');
-                  }}
                 >
-                  <h3 className="font-medium">{building.name}</h3>
-                  {building.description && (
-                    <p className="text-sm text-gray-600">{building.description}</p>
-                  )}
-                  <p className="text-xs text-gray-500">{building.floors?.length || 0}개 층</p>
+                  <div 
+                    className="cursor-pointer"
+                    onClick={() => {
+                      setSelectedBuilding(building.id);
+                      setSelectedFloor('');
+                    }}
+                  >
+                    <h3 className="font-medium">{building.name}</h3>
+                    {building.description && (
+                      <p className="text-sm text-gray-600">{building.description}</p>
+                    )}
+                    <p className="text-xs text-gray-500">{building.floors?.length || 0}개 층</p>
+                  </div>
+                  <div className="mt-2 flex justify-end">
+                    <Form method="post" className="inline">
+                      <input type="hidden" name="action" value="deleteBuilding" />
+                      <input type="hidden" name="buildingId" value={building.id} />
+                      <button
+                        type="submit"
+                        className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!confirm(`'${building.name}' 건물을 삭제하시겠습니까? 모든 층과 방 정보가 함께 삭제됩니다.`)) {
+                            e.preventDefault();
+                          }
+                        }}
+                      >
+                        삭제
+                      </button>
+                    </Form>
+                  </div>
                 </div>
               ))}
             </div>
@@ -267,16 +312,38 @@ export default function AdminPage() {
                   ?.floors?.map((floor) => (
                     <div
                       key={floor.id}
-                      className={`p-3 border rounded cursor-pointer hover:bg-gray-50 ${
+                      className={`p-3 border rounded hover:bg-gray-50 ${
                         selectedFloor === floor.id ? 'border-blue-500 bg-blue-50' : ''
                       }`}
-                      onClick={() => setSelectedFloor(floor.id)}
                     >
-                      <h3 className="font-medium">{floor.floor_number}층 - {floor.name}</h3>
-                      {floor.description && (
-                        <p className="text-sm text-gray-600">{floor.description}</p>
-                      )}
-                      <p className="text-xs text-gray-500">{floor.rooms?.length || 0}개 방</p>
+                      <div 
+                        className="cursor-pointer"
+                        onClick={() => setSelectedFloor(floor.id)}
+                      >
+                        <h3 className="font-medium">{floor.floor_number}층 - {floor.name}</h3>
+                        {floor.description && (
+                          <p className="text-sm text-gray-600">{floor.description}</p>
+                        )}
+                        <p className="text-xs text-gray-500">{floor.rooms?.length || 0}개 방</p>
+                      </div>
+                      <div className="mt-2 flex justify-end">
+                        <Form method="post" className="inline">
+                          <input type="hidden" name="action" value="deleteFloor" />
+                          <input type="hidden" name="floorId" value={floor.id} />
+                          <button
+                            type="submit"
+                            className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!confirm(`'${floor.floor_number}층 - ${floor.name}'을(를) 삭제하시겠습니까? 이 층의 모든 방 정보가 함께 삭제됩니다.`)) {
+                                e.preventDefault();
+                              }
+                            }}
+                          >
+                            삭제
+                          </button>
+                        </Form>
+                      </div>
                     </div>
                   ))}
               </div>
@@ -349,36 +416,99 @@ export default function AdminPage() {
                   ?.floors?.find((f) => f.id === selectedFloor)
                   ?.rooms?.map((room) => (
                     <div key={room.id} className="p-3 border rounded hover:bg-gray-50">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h3 className="font-medium">{room.name}</h3>
-                          {room.description && (
-                            <p className="text-sm text-gray-600">{room.description}</p>
-                          )}
-                          {room.image_url && (
-                            <img
-                              src={room.image_url}
-                              alt={room.name}
-                              className="mt-2 w-16 h-16 object-cover rounded"
-                            />
-                          )}
-                        </div>
-                        <Form method="post" className="ml-2">
-                          <input type="hidden" name="action" value="deleteRoom" />
+                      {editingRoom === room.id ? (
+                        // 편집 모드
+                        <Form method="post" encType="multipart/form-data" className="space-y-3">
+                          <input type="hidden" name="action" value="updateRoom" />
                           <input type="hidden" name="roomId" value={room.id} />
-                          <button
-                            type="submit"
-                            className="bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600"
-                            onClick={(e) => {
-                              if (!confirm('정말 삭제하시겠습니까?')) {
-                                e.preventDefault();
-                              }
-                            }}
-                          >
-                            삭제
-                          </button>
+                          <input
+                            type="text"
+                            name="name"
+                            defaultValue={room.name}
+                            placeholder="방 이름"
+                            required
+                            className="w-full p-2 border rounded"
+                          />
+                          <textarea
+                            name="description"
+                            defaultValue={room.description || ''}
+                            placeholder="설명"
+                            className="w-full p-2 border rounded"
+                            rows={2}
+                          />
+                          <input
+                            type="file"
+                            name="image"
+                            accept="image/*"
+                            className="w-full p-2 border rounded"
+                          />
+                          {room.image_url && (
+                            <div className="text-sm text-gray-600">
+                              현재 이미지: 
+                              <img
+                                src={room.image_url}
+                                alt={room.name}
+                                className="mt-1 w-16 h-16 object-cover rounded"
+                              />
+                            </div>
+                          )}
+                          <div className="flex space-x-2">
+                            <button
+                              type="submit"
+                              className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600"
+                            >
+                              저장
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingRoom(null)}
+                              className="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600"
+                            >
+                              취소
+                            </button>
+                          </div>
                         </Form>
-                      </div>
+                      ) : (
+                        // 일반 모드
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h3 className="font-medium">{room.name}</h3>
+                            {room.description && (
+                              <p className="text-sm text-gray-600">{room.description}</p>
+                            )}
+                            {room.image_url && (
+                              <img
+                                src={room.image_url}
+                                alt={room.name}
+                                className="mt-2 w-16 h-16 object-cover rounded"
+                              />
+                            )}
+                          </div>
+                          <div className="ml-2 flex space-x-1">
+                            <button
+                              onClick={() => setEditingRoom(room.id)}
+                              className="bg-blue-500 text-white px-2 py-1 rounded text-sm hover:bg-blue-600"
+                            >
+                              수정
+                            </button>
+                            <Form method="post" className="inline">
+                              <input type="hidden" name="action" value="deleteRoom" />
+                              <input type="hidden" name="roomId" value={room.id} />
+                              <button
+                                type="submit"
+                                className="bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600"
+                                onClick={(e) => {
+                                  if (!confirm(`'${room.name}'을(를) 삭제하시겠습니까?`)) {
+                                    e.preventDefault();
+                                  }
+                                }}
+                              >
+                                삭제
+                              </button>
+                            </Form>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
               </div>

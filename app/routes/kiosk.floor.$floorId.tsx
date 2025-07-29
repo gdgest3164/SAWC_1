@@ -1,60 +1,49 @@
-import { type LoaderFunctionArgs } from 'react-router';
-import { useLoaderData, Link } from 'react-router';
+import { Link, useParams } from 'react-router';
 import { useState } from 'react';
-import { getFloors, getRooms, getBuildings, initDatabase } from '~/lib/db';
-import type { Floor, Room, Building } from '~/types';
+import { useKiosk } from '~/contexts/KioskContext';
+import type { Room } from '~/types';
 
-interface FloorWithRoomsAndBuilding extends Floor {
-  rooms: Room[];
-  building: Building;
-}
+export default function FloorRoomsPage() {
+  const { floorId } = useParams();
+  const { getFloor, state } = useKiosk();
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
 
-export async function loader({ params }: LoaderFunctionArgs) {
-  const { floorId } = params;
-  
   if (!floorId) {
     throw new Response('Floor ID is required', { status: 400 });
   }
 
-  try {
-    await initDatabase();
-    const buildings = await getBuildings();
-    const rooms = await getRooms(floorId);
-    
-    // 현재 층 정보 찾기
-    let currentFloor: Floor | null = null;
-    let currentBuilding: Building | null = null;
-    
-    for (const building of buildings) {
-      const floors = await getFloors(building.id);
-      const floor = floors.find(f => f.id === floorId);
-      if (floor) {
-        currentFloor = floor;
-        currentBuilding = building;
-        break;
-      }
-    }
-    
-    if (!currentFloor || !currentBuilding) {
-      throw new Response('Floor not found', { status: 404 });
-    }
+  const floor = getFloor(floorId);
 
-    const floorWithData = {
-      ...currentFloor,
-      rooms,
-      building: currentBuilding
-    };
-
-    return Response.json({ floor: floorWithData });
-  } catch (error) {
-    console.error('Error loading floor data:', error);
-    throw new Response('Failed to load floor data', { status: 500 });
+  if (!floor) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">층을 찾을 수 없습니다</h1>
+          <Link to="/kiosk" className="text-purple-600 hover:text-purple-800">
+            ← 메인으로 돌아가기
+          </Link>
+        </div>
+      </div>
+    );
   }
-}
 
-export default function FloorRoomsPage() {
-  const { floor } = useLoaderData<typeof loader>();
-  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  // 현재 층이 속한 건물 찾기
+  const building = state.buildings.find(b => 
+    b.floors.some(f => f.id === floorId)
+  );
+
+  if (!building) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">건물 정보를 찾을 수 없습니다</h1>
+          <Link to="/kiosk" className="text-purple-600 hover:text-purple-800">
+            ← 메인으로 돌아가기
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100">
@@ -63,10 +52,10 @@ export default function FloorRoomsPage() {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Link
-              to={`/kiosk/building/${floor.building.id}`}
+              to={`/kiosk/building/${building.id}`}
               className="text-purple-600 hover:text-purple-800 font-medium"
             >
-              ← {floor.building.name}
+              ← {building.name}
             </Link>
             <span className="text-gray-400">|</span>
             <h1 className="text-2xl font-bold text-gray-900">
@@ -236,7 +225,7 @@ export default function FloorRoomsPage() {
         {/* 하단 네비게이션 */}
         <div className="mt-12 flex justify-center space-x-4">
           <Link
-            to={`/kiosk/building/${floor.building.id}`}
+            to={`/kiosk/building/${building.id}`}
             className="bg-white text-purple-600 border-2 border-purple-600 font-bold px-8 py-4 rounded-xl shadow-lg hover:bg-purple-50 transition-colors"
           >
             다른 층 보기

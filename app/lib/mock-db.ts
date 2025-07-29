@@ -12,7 +12,9 @@ function generateId(): string {
 }
 
 export function useMockDatabase() {
-  return process.env.NODE_ENV === 'development' && !process.env.POSTGRES_URL?.includes('postgres://');
+  // POSTGRES_URL 또는 DATABASE_URL이 없으면 Mock DB 사용
+  const hasRealDb = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+  return process.env.NODE_ENV === 'development' && !hasRealDb;
 }
 
 export async function mockInitDatabase() {
@@ -108,6 +110,20 @@ export async function mockDeleteFloor(floorId: string): Promise<void> {
   }
   // 해당 층의 모든 방도 삭제
   rooms = rooms.filter(r => r.floor_id !== floorId);
+  return Promise.resolve();
+}
+
+export async function mockDeleteBuilding(buildingId: string): Promise<void> {
+  const buildingIndex = buildings.findIndex(b => b.id === buildingId);
+  if (buildingIndex !== -1) {
+    buildings.splice(buildingIndex, 1);
+  }
+  // 해당 건물의 모든 층과 방도 삭제
+  const buildingFloors = floors.filter(f => f.building_id === buildingId);
+  buildingFloors.forEach(floor => {
+    rooms = rooms.filter(r => r.floor_id !== floor.id);
+  });
+  floors = floors.filter(f => f.building_id !== buildingId);
   return Promise.resolve();
 }
 
