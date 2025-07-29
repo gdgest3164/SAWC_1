@@ -7,9 +7,136 @@
 
 html,
 body {
-  @apply bg-white dark:bg-gray-950;
+  @apply bg-white;
+  touch-action: manipulation;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
-  @media (prefers-color-scheme: dark) {
-    color-scheme: dark;
+/* 터치 친화적 스타일링 */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 터치 타겟 최소 크기 보장 */
+button, 
+.touchable {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* 큰 터치 영역을 위한 패딩 */
+.touch-friendly {
+  padding: 1rem;
+  margin: 0.5rem;
+}
+
+/* 터치 피드백 효과 */
+.touch-feedback {
+  transition: all 0.15s ease;
+}
+
+.touch-feedback:active {
+  transform: scale(0.98);
+  opacity: 0.8;
+}
+
+/* 커스텀 스크롤바 (터치 디바이스에서 숨김) */
+@media (hover: hover) {
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+  }
+}
+
+/* 키오스크 전용 스타일 */
+.kiosk-mode {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* 터치 영역 강조 */
+.touch-area {
+  position: relative;
+  overflow: hidden;
+}
+
+.touch-area::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.touch-area:active::after {
+  width: 300px;
+  height: 300px;
+}
+
+/* 애니메이션 효과 */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.pulse-animation {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* 반응형 텍스트 크기 */
+.responsive-text {
+  font-size: clamp(1rem, 2.5vw, 1.5rem);
+}
+
+.responsive-title {
+  font-size: clamp(1.5rem, 4vw, 3rem);
+}
+
+/* 고대비 모드 지원 */
+@media (prefers-contrast: high) {
+  .bg-gradient-to-r,
+  .bg-gradient-to-br {
+    background: #000 !important;
+    color: #fff !important;
+  }
+  
+  .border-transparent {
+    border-color: #000 !important;
+  }
+}
+
+/* 모션 감소 설정 지원 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
